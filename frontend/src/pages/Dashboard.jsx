@@ -4,11 +4,19 @@ import { api } from '../services/api';
 import StatCard from '../components/StatCard';
 import CowTable from '../components/CowTable';
 import LiveMap from '../components/LiveMap';
+import { 
+  StatCardSkeleton, 
+  TableSkeleton, 
+  MapSkeleton, 
+  QuickStatsSkeleton,
+  FullPageLoader 
+} from '../components/LoadingSkeleton';
 
 export default function Dashboard({ language = 'en' }) {
   const [stats, setStats] = useState(null);
   const [cows, setCows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [dataLoaded, setDataLoaded] = useState(false);
   const navigate = useNavigate();
 
   const t = (key) => {
@@ -27,7 +35,7 @@ export default function Dashboard({ language = 'en' }) {
         profitPerCow: 'Profit per Cow',
         healthAlertRate: 'Health Alert Rate',
         cowStatus: 'Cow Status',
-        loading: 'Loading...',
+        loading: 'Loading your farm data...',
         liters: 'L',
         kg: 'kg',
         inr: 'INR'
@@ -46,7 +54,7 @@ export default function Dashboard({ language = 'en' }) {
         profitPerCow: 'மாடுக்கு லாபம்',
         healthAlertRate: 'உடல்நலம் எச்சரிக்கை விகிதம்',
         cowStatus: 'மாடு நிலை',
-        loading: 'ஏற்றுகிறது...',
+        loading: 'உங்கள் பண்ணை தரவை ஏற்றுகிறது...',
         liters: 'லி',
         kg: 'கிகி',
         inr: 'ரூ'
@@ -68,6 +76,7 @@ export default function Dashboard({ language = 'en' }) {
       setStats(statsData);
       setCows(cowsData);
       setLoading(false);
+      setTimeout(() => setDataLoaded(true), 100);
     } catch (error) {
       console.error('Error loading dashboard data:', error);
       setLoading(false);
@@ -79,19 +88,19 @@ export default function Dashboard({ language = 'en' }) {
   };
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-xl text-gray-600">{t('loading')}</div>
-      </div>
-    );
+    return <FullPageLoader message={t('loading')} />;
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 p-6">
       <div className="max-w-7xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">{t('appName')}</h1>
-          <p className="text-gray-500 mt-1">
+        <div className="mb-8 animate-fade-in-up">
+          <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+            <span className="inline-block animate-bounce-gentle">📊</span>
+            {t('appName')}
+          </h1>
+          <p className="text-gray-500 mt-2 flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
             {language === 'ta' ? 'உங்கள் பண்ணையை நிகழ்நேரத்தில் கண்காணிக்கவும்' : 'Monitor your farm in real-time'}
           </p>
         </div>
@@ -102,97 +111,167 @@ export default function Dashboard({ language = 'en' }) {
             value={stats?.totalCows || 0}
             icon={<span className="text-2xl">🐄</span>}
             color="green"
+            delay={0}
           />
           <StatCard
             title={t('cowsInLactation')}
             value={stats?.lactatingCows || 0}
             icon={<span className="text-2xl">🥛</span>}
             color="blue"
+            delay={50}
           />
           <StatCard
             title={`${t('todaysMilkYield')} (${t('liters')})`}
             value={stats?.totalMilkYield || 0}
             icon={<span className="text-2xl">📊</span>}
             color="purple"
+            delay={100}
           />
           <StatCard
             title={`${t('totalFeedRequired')} (${t('kg')})`}
             value={stats?.totalFeedRequired || 0}
             icon={<span className="text-2xl">🌾</span>}
             color="yellow"
+            delay={150}
           />
           <StatCard
             title={t('healthAlerts')}
             value={stats?.healthAlerts || 0}
             icon={<span className="text-2xl">⚠️</span>}
             color="red"
+            delay={200}
           />
           <StatCard
             title={`${t('dailyProfit')} (${t('inr')})`}
             value={`₹${stats?.estimatedDailyProfit || 0}`}
             icon={<span className="text-2xl">💰</span>}
             color="green"
+            delay={250}
           />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <LiveMap cows={cows} language={language} onCowClick={handleCowClick} />
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-semibold mb-4">{t('quickStats')}</h2>
+          <div className="animate-fade-in-up" style={{ animationDelay: '300ms' }}>
+            <LiveMap cows={cows} language={language} onCowClick={handleCowClick} />
+          </div>
+          <div className="bg-white rounded-lg shadow-lg p-6 animate-fade-in-up card-interactive" style={{ animationDelay: '350ms' }}>
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <span className="text-2xl">📈</span>
+              {t('quickStats')}
+            </h2>
             <div className="space-y-4">
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="text-gray-600">{t('avgMilkPerCow')}</span>
-                <span className="font-semibold text-lg">{stats?.totalCows > 0 ? (stats.totalMilkYield / stats.totalCows).toFixed(1) : 0} {t('liters')}</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="text-gray-600">{t('avgFeedPerCow')}</span>
-                <span className="font-semibold text-lg">{stats?.totalCows > 0 ? (stats.totalFeedRequired / stats.totalCows).toFixed(1) : 0} {t('kg')}</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="text-gray-600">{t('profitPerCow')}</span>
-                <span className="font-semibold text-lg">₹{stats?.totalCows > 0 ? (stats.estimatedDailyProfit / stats.totalCows).toFixed(2) : 0}</span>
-              </div>
-              <div className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
-                <span className="text-gray-600">{t('healthAlertRate')}</span>
-                <span className={`font-semibold text-lg ${stats?.healthAlerts > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  {stats?.totalCows > 0 ? ((stats.healthAlerts / stats.totalCows) * 100).toFixed(1) : 0}%
-                </span>
-              </div>
+              <QuickStatItem 
+                label={t('avgMilkPerCow')}
+                value={`${stats?.totalCows > 0 ? (stats.totalMilkYield / stats.totalCows).toFixed(1) : 0} ${t('liters')}`}
+                icon="🥛"
+                delay={400}
+              />
+              <QuickStatItem 
+                label={t('avgFeedPerCow')}
+                value={`${stats?.totalCows > 0 ? (stats.totalFeedRequired / stats.totalCows).toFixed(1) : 0} ${t('kg')}`}
+                icon="🌾"
+                delay={450}
+              />
+              <QuickStatItem 
+                label={t('profitPerCow')}
+                value={`₹${stats?.totalCows > 0 ? (stats.estimatedDailyProfit / stats.totalCows).toFixed(2) : 0}`}
+                icon="💵"
+                delay={500}
+              />
+              <QuickStatItem 
+                label={t('healthAlertRate')}
+                value={`${stats?.totalCows > 0 ? ((stats.healthAlerts / stats.totalCows) * 100).toFixed(1) : 0}%`}
+                valueColor={stats?.healthAlerts > 0 ? 'text-red-600' : 'text-green-600'}
+                icon={stats?.healthAlerts > 0 ? '⚠️' : '✅'}
+                delay={550}
+              />
             </div>
 
-            <div className="mt-6 p-4 bg-green-50 rounded-lg border border-green-200">
-              <h3 className="font-semibold text-green-800 mb-2">
-                {language === 'ta' ? '💡 IoT நிலை' : '💡 IoT Status'}
+            <div className="mt-6 p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-xl border border-green-200 animate-fade-in-up" style={{ animationDelay: '600ms' }}>
+              <h3 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                <span className="text-xl">📡</span>
+                {language === 'ta' ? 'IoT நிலை' : 'IoT Status'}
               </h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                  <span className="text-green-700">
-                    {language === 'ta' ? 'காது டேக் சென்சார்கள் இணைக்கப்பட்டுள்ளன' : 'Ear tag sensors connected'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                  <span className="text-green-700">
-                    {language === 'ta' ? 'GPS கண்காணிப்பு செயலில் உள்ளது' : 'GPS tracking active'}
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
-                  <span className="text-green-700">
-                    {language === 'ta' ? 'வெப்பநிலை சென்சார்கள் இயங்குகின்றன' : 'Temperature sensors running'}
-                  </span>
-                </div>
+              <div className="space-y-3 text-sm">
+                <IoTStatusItem 
+                  label={language === 'ta' ? 'காது டேக் சென்சார்கள் இணைக்கப்பட்டுள்ளன' : 'Ear tag sensors connected'}
+                  delay={650}
+                />
+                <IoTStatusItem 
+                  label={language === 'ta' ? 'GPS கண்காணிப்பு செயலில் உள்ளது' : 'GPS tracking active'}
+                  delay={700}
+                />
+                <IoTStatusItem 
+                  label={language === 'ta' ? 'வெப்பநிலை சென்சார்கள் இயங்குகின்றன' : 'Temperature sensors running'}
+                  delay={750}
+                />
               </div>
             </div>
           </div>
         </div>
 
-        <div className="mb-8">
-          <h2 className="text-2xl font-semibold mb-4">{t('cowStatus')}</h2>
+        <div className="mb-8 animate-fade-in-up" style={{ animationDelay: '400ms' }}>
+          <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
+            <span className="text-2xl">🐄</span>
+            {t('cowStatus')}
+          </h2>
           <CowTable cows={cows} language={language} />
         </div>
       </div>
+    </div>
+  );
+}
+
+function QuickStatItem({ label, value, icon, valueColor = 'text-gray-900', delay = 0 }) {
+  const [isVisible, setIsVisible] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), delay);
+    return () => clearTimeout(timer);
+  }, [delay]);
+
+  return (
+    <div 
+      className={`
+        flex justify-between items-center p-4 bg-gradient-to-r from-gray-50 to-white 
+        rounded-xl border border-gray-100 transition-all duration-300 cursor-pointer
+        ${isHovered ? 'shadow-md border-green-200 scale-[1.02]' : 'hover:shadow-sm'}
+        ${isVisible ? 'animate-slide-in-left' : 'opacity-0'}
+      `}
+      style={{ animationDelay: `${delay}ms` }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <div className="flex items-center gap-3">
+        <span className={`text-xl transition-transform duration-200 ${isHovered ? 'scale-125' : ''}`}>{icon}</span>
+        <span className="text-gray-600">{label}</span>
+      </div>
+      <span className={`font-semibold text-lg ${valueColor} transition-all duration-200 ${isHovered ? 'scale-110' : ''}`}>
+        {value}
+      </span>
+    </div>
+  );
+}
+
+function IoTStatusItem({ label, delay = 0 }) {
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsVisible(true), delay);
+    return () => clearTimeout(timer);
+  }, [delay]);
+
+  return (
+    <div 
+      className={`flex items-center gap-3 p-2 rounded-lg hover:bg-green-100/50 transition-all duration-200 ${isVisible ? 'animate-fade-in' : 'opacity-0'}`}
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <div className="relative">
+        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+        <div className="absolute inset-0 w-3 h-3 rounded-full bg-green-500 animate-ping opacity-75"></div>
+      </div>
+      <span className="text-green-700 font-medium">{label}</span>
     </div>
   );
 }

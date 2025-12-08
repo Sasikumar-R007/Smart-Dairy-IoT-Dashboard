@@ -1,7 +1,18 @@
 import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 
 export default function Navigation({ language, setLanguage }) {
   const location = useLocation();
+  const [scrolled, setScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 10);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   const t = (key) => {
     const translations = {
@@ -37,13 +48,24 @@ export default function Navigation({ language, setLanguage }) {
   ];
 
   return (
-    <nav className="bg-gradient-to-r from-green-700 to-green-600 text-white shadow-lg">
+    <nav className={`
+      sticky top-0 z-50 transition-all duration-300
+      ${scrolled 
+        ? 'bg-gradient-to-r from-green-700/95 to-green-600/95 backdrop-blur-md shadow-lg' 
+        : 'bg-gradient-to-r from-green-700 to-green-600 shadow-md'
+      }
+      text-white
+    `}>
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex justify-between items-center h-16">
-          <div className="flex items-center gap-2">
-            <div className="text-3xl">🐄</div>
-            <span className="text-xl font-bold">{t('appName')}</span>
-          </div>
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="text-3xl transition-transform duration-300 group-hover:scale-110 group-hover:rotate-6">
+              🐄
+            </div>
+            <span className="text-xl font-bold tracking-tight transition-all duration-300 group-hover:tracking-wide">
+              {t('appName')}
+            </span>
+          </Link>
           
           <div className="flex items-center gap-6">
             <div className="hidden md:flex items-center gap-2">
@@ -51,38 +73,54 @@ export default function Navigation({ language, setLanguage }) {
                 <Link
                   key={item.path}
                   to={item.path}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg transition ${
-                    location.pathname === item.path 
-                      ? 'bg-white/20 font-medium' 
+                  className={`
+                    relative flex items-center gap-2 px-4 py-2 rounded-lg 
+                    transition-all duration-300 overflow-hidden group
+                    ${location.pathname === item.path 
+                      ? 'bg-white/20 font-medium shadow-inner' 
                       : 'hover:bg-white/10'
-                  }`}
+                    }
+                  `}
                 >
-                  {item.icon}
-                  {item.label}
+                  <span className={`transition-transform duration-300 ${location.pathname === item.path ? 'scale-110' : 'group-hover:scale-110'}`}>
+                    {item.icon}
+                  </span>
+                  <span className="relative">
+                    {item.label}
+                    {location.pathname === item.path && (
+                      <span className="absolute -bottom-1 left-0 right-0 h-0.5 bg-white rounded-full animate-fade-in"></span>
+                    )}
+                  </span>
                 </Link>
               ))}
             </div>
             
-            <div className="flex items-center gap-2 bg-white/10 rounded-lg p-1">
+            <div className="flex items-center gap-1 bg-white/10 rounded-xl p-1 backdrop-blur-sm">
               <button
                 onClick={() => setLanguage('en')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
-                  language === 'en' 
-                    ? 'bg-white text-green-700' 
+                className={`
+                  relative px-4 py-2 rounded-lg text-sm font-medium 
+                  transition-all duration-300 overflow-hidden
+                  ${language === 'en' 
+                    ? 'bg-white text-green-700 shadow-md scale-105' 
                     : 'hover:bg-white/10'
-                }`}
+                  }
+                `}
               >
-                EN
+                <span className="relative z-10">EN</span>
               </button>
               <button
                 onClick={() => setLanguage('ta')}
-                className={`px-3 py-1.5 rounded-md text-sm font-medium transition ${
-                  language === 'ta' 
-                    ? 'bg-white text-green-700' 
+                className={`
+                  relative px-4 py-2 rounded-lg text-sm font-medium 
+                  transition-all duration-300 overflow-hidden
+                  ${language === 'ta' 
+                    ? 'bg-white text-green-700 shadow-md scale-105' 
                     : 'hover:bg-white/10'
-                }`}
+                  }
+                `}
               >
-                தமிழ்
+                <span className="relative z-10">தமிழ்</span>
               </button>
             </div>
           </div>
@@ -93,13 +131,18 @@ export default function Navigation({ language, setLanguage }) {
             <Link
               key={item.path}
               to={item.path}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg transition text-sm ${
-                location.pathname === item.path 
-                  ? 'bg-white/20 font-medium' 
+              className={`
+                flex-1 flex items-center justify-center gap-2 px-4 py-3 rounded-xl 
+                transition-all duration-300 text-sm
+                ${location.pathname === item.path 
+                  ? 'bg-white/20 font-medium shadow-inner scale-[1.02]' 
                   : 'hover:bg-white/10'
-              }`}
+                }
+              `}
             >
-              {item.icon}
+              <span className={`transition-transform duration-300 ${location.pathname === item.path ? 'scale-110' : ''}`}>
+                {item.icon}
+              </span>
               {item.label}
             </Link>
           ))}
