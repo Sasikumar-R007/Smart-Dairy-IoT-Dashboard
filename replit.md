@@ -54,6 +54,15 @@ A full-stack web application for monitoring dairy cows using IoT sensors (ear ta
 - Bilingual: English (default) and Tamil
 
 ## Recent Changes
+- December 8, 2025: Added animations and interactivity enhancements
+  - Loading animations with cow-themed spinner
+  - Skeleton loading states for all components
+  - Animated number counters on stat cards
+  - Staggered fade-in animations for dashboard elements
+  - Hover effects and smooth transitions throughout
+  - Interactive table rows with visual feedback
+  - Smooth navigation transitions and sticky header
+  - Map marker pop-in animations
 - December 8, 2025: Major enhancement with Tamil language support
 - Added Leaflet map integration for GPS cow tracking
 - Implemented full cow management (add, edit, delete)
