@@ -1,0 +1,212 @@
+Project Name:
+Smart Dairy IoT Dashboard – Cow Monitoring & Yield Prediction System
+
+Project Description / Prompt:
+Build a full-stack web dashboard that helps farmers monitor their cows in real-time using RFID/ear tags, sensors, and predictive analytics. The dashboard should track individual cow identity, health, location, milk yield, feed recommendations, and profit estimation.
+
+Core Modules to Implement:
+1. Cow Identification Module
+
+Add cows using ID (RFID tag), breed, DOB, weight, lactation stage.
+
+Each cow gets a detailed profile page.
+
+Sync ear tag ID → Cow data.
+
+2. Real-Time Dashboard Overview
+
+Show key farm metrics:
+
+Total cows
+
+Cows in lactation
+
+Today’s milk yield
+
+Total feed required today
+
+Health alerts
+
+Profit estimate
+
+Use responsive cards + charts.
+
+3. Cow List & Status Table
+
+A searchable table containing:
+
+Cow ID
+
+Breed
+
+Age
+
+Health score
+
+Today’s milk yield
+
+Feed required
+
+Status alerts
+
+Clicking a row opens the full profile.
+
+4. Farm Map View (Layout)
+
+A simple top-view schematic of the farm.
+
+Display cow icons with status colors (Healthy = green, Risk = yellow, Alert = red).
+
+If GPS data available → show position.
+
+If no GPS → show activity zone (feeding area/milking area).
+
+5. Milk Yield Monitoring
+
+Input actual milk yield manually (Phase 1).
+
+Display daily/weekly/monthly milk charts.
+
+Provide predicted yield based on:
+
+Breed
+
+Lactation stage
+
+Feed intake
+
+Past trends
+
+Health score
+
+6. Feeding Recommendation Engine
+
+For each cow, calculate:
+
+Green fodder needed
+
+Dry fodder needed
+
+Concentrate (kg)
+
+Minerals
+
+Based on:
+
+Breed
+
+Weight
+
+Lactation stage
+
+Milk yield
+
+Season
+
+Also show:
+
+Feed cost per day
+
+Expected milk output
+
+Net profit per cow
+
+7. Health Monitoring
+
+Dashboard shows:
+
+Temperature trends (if sensor data available)
+
+Activity score
+
+Rumination score (if data provided)
+
+Alerts for fever, low activity, abnormal milk drop
+
+Generate a Health Score (0–100) using rules.
+
+8. Profit & Analytics Module
+
+Daily profit
+
+Per-cow profit
+
+Monthly farm profit
+
+Feed cost vs Milk revenue chart
+
+Identify:
+
+High-performing cows
+
+Low-performing cows
+
+Disease risk cows
+
+9. Backend Requirements
+
+Node.js + Express backend
+
+REST API for cow data, feed data, yield data
+
+Store data in Firebase / Supabase / Replit DB
+
+API endpoint structure:
+
+/cows
+
+/cows/:id
+
+/yield/:id
+
+/feed/:id
+
+/health/:id
+
+10. Frontend Requirements
+
+React / Next.js / Vite-React
+
+Components:
+
+Dashboard
+
+Cow Detail
+
+Map View
+
+Feed Calculator
+
+Milk Chart
+
+Alerts Panel
+
+Use TailwindCSS for clean UI
+
+Use Recharts for graphs
+
+11. Optional Phase 2 Enhancements
+
+BLE/LoRa sensor integration
+
+Auto data sync
+
+Mobile app mode
+
+Voice assistant for farmers
+
+Offline mode
+
+⚡ Expected UI Style
+
+Clean, modern farm-tech feel
+
+White + Gray + Green accents
+
+Minimal, data-focused
+
+Icons for cows, alerts, feed, milk
+
+📌 Goal
+
+Create a scalable, affordable dairy management system for a farmer with 25 cows, with real-time monitoring, prediction, and analytics.

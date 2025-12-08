@@ -1,0 +1,15 @@
+{
+  "name": "dairy-backend",
+  "version": "1.0.0",
+  "description": "Backend API for Smart Dairy Dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "@replit/database": "^2.1.2"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "name": "smart-dairy-dashboard",
+  "version": "1.0.0",
+  "description": "Smart Dairy IoT Dashboard - Cow Monitoring & Yield Prediction System",
+  "scripts": {
+    "dev": "concurrently \"npm run backend\" \"npm run frontend\"",
+    "backend": "cd backend && node server.js",
+    "frontend": "cd frontend && npm run dev",
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+  },
+  "keywords": ["dairy", "iot", "dashboard", "farming"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
