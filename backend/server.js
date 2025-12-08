@@ -58,6 +58,19 @@ const initializeData = async () => {
     ];
     await db.set('cows', sampleCows);
   }
+  
+  const cowIds = ['COW001', 'COW002', 'COW003'];
+  for (const cowId of cowIds) {
+    const existingYield = await db.get(`yield_${cowId}`);
+    if (!existingYield || existingYield.length === 0) {
+      const yieldAmount = cowId === 'COW001' ? 28 : cowId === 'COW002' ? 22 : 25;
+      const sampleYield = Array.from({length: 30}, (_, i) => ({
+        date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        yield: yieldAmount - 2 + Math.random() * 4
+      }));
+      await db.set(`yield_${cowId}`, sampleYield);
+    }
+  }
 };
 
 const calculateFeedRequirements = (cow) => {
@@ -263,7 +276,7 @@ app.get('/api/health/:id', async (req, res) => {
 });
 
 initializeData().then(() => {
-  app.listen(PORT, 'localhost', () => {
-    console.log(`Backend server running on http://localhost:${PORT}`);
+  app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Backend server running on http://0.0.0.0:${PORT}`);
   });
 });

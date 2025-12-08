@@ -8,6 +8,7 @@ export default function CowDetail() {
   const navigate = useNavigate();
   const [cow, setCow] = useState(null);
   const [health, setHealth] = useState(null);
+  const [yieldHistory, setYieldHistory] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,12 +17,14 @@ export default function CowDetail() {
 
   const loadCowData = async () => {
     try {
-      const [cowData, healthData] = await Promise.all([
+      const [cowData, healthData, yieldData] = await Promise.all([
         api.getCow(id),
-        api.getHealth(id)
+        api.getHealth(id),
+        api.getYield(id)
       ]);
       setCow(cowData);
       setHealth(healthData);
+      setYieldHistory(yieldData);
       setLoading(false);
     } catch (error) {
       console.error('Error loading cow data:', error);
@@ -177,6 +180,59 @@ export default function CowDetail() {
                 <p className="text-gray-500 text-sm">Minerals</p>
                 <p className="text-lg font-semibold">{cow.feedRequirements.minerals} kg</p>
               </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-white rounded-lg shadow p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Milk Yield Monitoring</h2>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={yieldHistory}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis 
+                dataKey="date" 
+                tickFormatter={(date) => new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+              />
+              <YAxis label={{ value: 'Yield (L)', angle: -90, position: 'insideLeft' }} />
+              <Tooltip 
+                labelFormatter={(date) => new Date(date).toLocaleDateString()}
+                formatter={(value) => [`${value.toFixed(2)} L`, 'Yield']}
+              />
+              <Legend />
+              <Line 
+                type="monotone" 
+                dataKey="yield" 
+                stroke="#3b82f6" 
+                strokeWidth={2}
+                dot={{ fill: '#3b82f6', r: 3 }}
+                name="Daily Milk Yield"
+              />
+            </LineChart>
+          </ResponsiveContainer>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <div className="text-center p-3 bg-blue-50 rounded-lg">
+              <p className="text-gray-600 text-sm">Current Yield</p>
+              <p className="text-2xl font-bold text-blue-600">{cow.currentYield} L</p>
+            </div>
+            <div className="text-center p-3 bg-green-50 rounded-lg">
+              <p className="text-gray-600 text-sm">Avg (30 days)</p>
+              <p className="text-2xl font-bold text-green-600">
+                {yieldHistory.length > 0 ? (yieldHistory.reduce((sum, d) => sum + d.yield, 0) / yieldHistory.length).toFixed(1) : 0} L
+              </p>
+            </div>
+            <div className="text-center p-3 bg-purple-50 rounded-lg">
+              <p className="text-gray-600 text-sm">Peak Yield</p>
+              <p className="text-2xl font-bold text-purple-600">
+                {yieldHistory.length > 0 ? Math.max(...yieldHistory.map(d => d.yield)).toFixed(1) : 0} L
+              </p>
+            </div>
+            <div className="text-center p-3 bg-yellow-50 rounded-lg">
+              <p className="text-gray-600 text-sm">Trend</p>
+              <p className="text-2xl font-bold text-yellow-600">
+                {yieldHistory.length >= 2 ? 
+                  (yieldHistory[yieldHistory.length - 1].yield > yieldHistory[0].yield ? '📈' : '📉') 
+                  : '➡️'}
+              </p>
             </div>
           </div>
         </div>
