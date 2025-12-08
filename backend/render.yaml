@@ -1,0 +1,15 @@
+# Render Blueprint Spec
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: dairy-backend
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
