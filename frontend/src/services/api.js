@@ -28,6 +28,13 @@ export const api = {
     });
     return response.json();
   },
+
+  deleteCow: async (id) => {
+    const response = await fetch(`${API_BASE}/cows/${id}`, {
+      method: 'DELETE'
+    });
+    return response.json();
+  },
   
   getDashboardStats: async () => {
     const response = await fetch(`${API_BASE}/dashboard/stats`);
@@ -55,6 +62,29 @@ export const api = {
   
   getHealth: async (id) => {
     const response = await fetch(`${API_BASE}/health/${id}`);
+    return response.json();
+  },
+
+  getFarmSettings: async () => {
+    const response = await fetch(`${API_BASE}/farm/settings`);
+    return response.json();
+  },
+
+  updateFarmSettings: async (settings) => {
+    const response = await fetch(`${API_BASE}/farm/settings`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    });
+    return response.json();
+  },
+
+  updateCowLocation: async (id, lat, lng) => {
+    const response = await fetch(`${API_BASE}/cows/${id}/location`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ lat, lng })
+    });
     return response.json();
   }
 };
