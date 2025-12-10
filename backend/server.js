@@ -1,17 +1,38 @@
 const express = require('express');
 const cors = require('cors');
-const Database = require('@replit/database');
+const { MongoClient, ObjectId } = require('mongodb');
 
 const app = express();
-const db = new Database();
 const PORT = process.env.PORT || 3000;
 
-app.use(cors());
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/smart-dairy';
+let db;
+
+app.use(cors({
+  origin: process.env.FRONTEND_URL || '*',
+  credentials: true
+}));
 app.use(express.json());
 
+const connectDB = async () => {
+  try {
+    const client = new MongoClient(MONGODB_URI);
+    await client.connect();
+    db = client.db();
+    console.log('Connected to MongoDB');
+    await initializeData();
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
+    process.exit(1);
+  }
+};
+
 const initializeData = async () => {
-  const cows = await db.get('cows');
-  if (!cows || cows.length === 0) {
+  const cowsCollection = db.collection('cows');
+  const settingsCollection = db.collection('farmSettings');
+  
+  const existingCows = await cowsCollection.countDocuments();
+  if (existingCows === 0) {
     const sampleCows = [
       {
         id: 'COW001',
@@ -71,25 +92,23 @@ const initializeData = async () => {
         lastUpdated: new Date().toISOString()
       }
     ];
-    await db.set('cows', sampleCows);
-  }
-  
-  const cowIds = ['COW001', 'COW002', 'COW003'];
-  for (const cowId of cowIds) {
-    const existingYield = await db.get(`yield_${cowId}`);
-    if (!existingYield || existingYield.length === 0) {
-      const yieldAmount = cowId === 'COW001' ? 12 : cowId === 'COW002' ? 10 : 8;
+    await cowsCollection.insertMany(sampleCows);
+    
+    const yieldCollection = db.collection('yieldData');
+    for (const cow of sampleCows) {
+      const yieldAmount = cow.id === 'COW001' ? 12 : cow.id === 'COW002' ? 10 : 8;
       const sampleYield = Array.from({length: 30}, (_, i) => ({
+        cowId: cow.id,
         date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         yield: yieldAmount - 1 + Math.random() * 2
       }));
-      await db.set(`yield_${cowId}`, sampleYield);
+      await yieldCollection.insertMany(sampleYield);
     }
   }
 
-  const farmSettings = await db.get('farmSettings');
-  if (!farmSettings) {
-    await db.set('farmSettings', {
+  const existingSettings = await settingsCollection.findOne({});
+  if (!existingSettings) {
+    await settingsCollection.insertOne({
       farmName: 'Smart Dairy Farm',
       location: 'Coimbatore, Tamil Nadu',
       centerLat: 11.0168,
@@ -142,7 +161,7 @@ const calculateHealthScore = (cow) => {
 
 app.get('/api/cows', async (req, res) => {
   try {
-    const cows = await db.get('cows') || [];
+    const cows = await db.collection('cows').find({}).toArray();
     const cowsWithDetails = cows.map(cow => ({
       ...cow,
       healthScore: calculateHealthScore(cow),
@@ -158,8 +177,7 @@ app.get('/api/cows', async (req, res) => {
 
 app.get('/api/cows/:id', async (req, res) => {
   try {
-    const cows = await db.get('cows') || [];
-    const cow = cows.find(c => c.id === req.params.id);
+    const cow = await db.collection('cows').findOne({ id: req.params.id });
     if (!cow) {
       return res.status(404).json({ error: 'Cow not found' });
     }
@@ -178,20 +196,22 @@ app.get('/api/cows/:id', async (req, res) => {
 
 app.post('/api/cows', async (req, res) => {
   try {
-    const cows = await db.get('cows') || [];
+    const cowsCollection = db.collection('cows');
+    const count = await cowsCollection.countDocuments();
     const newCow = {
       ...req.body,
-      id: `COW${String(cows.length + 1).padStart(3, '0')}`,
+      id: `COW${String(count + 1).padStart(3, '0')}`,
       lastUpdated: new Date().toISOString()
     };
-    cows.push(newCow);
-    await db.set('cows', cows);
+    await cowsCollection.insertOne(newCow);
     
+    const yieldCollection = db.collection('yieldData');
     const sampleYield = Array.from({length: 30}, (_, i) => ({
+      cowId: newCow.id,
       date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
       yield: (req.body.currentYield || 8) - 1 + Math.random() * 2
     }));
-    await db.set(`yield_${newCow.id}`, sampleYield);
+    await yieldCollection.insertMany(sampleYield);
     
     res.status(201).json(newCow);
   } catch (error) {
@@ -201,18 +221,16 @@ app.post('/api/cows', async (req, res) => {
 
 app.put('/api/cows/:id', async (req, res) => {
   try {
-    const cows = await db.get('cows') || [];
-    const index = cows.findIndex(c => c.id === req.params.id);
-    if (index === -1) {
+    const cow = await db.collection('cows').findOne({ id: req.params.id });
+    if (!cow) {
       return res.status(404).json({ error: 'Cow not found' });
     }
-    cows[index] = { 
-      ...cows[index], 
-      ...req.body,
-      lastUpdated: new Date().toISOString()
-    };
-    await db.set('cows', cows);
-    res.json(cows[index]);
+    await db.collection('cows').updateOne(
+      { id: req.params.id },
+      { $set: { ...req.body, lastUpdated: new Date().toISOString() } }
+    );
+    const updatedCow = await db.collection('cows').findOne({ id: req.params.id });
+    res.json(updatedCow);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -220,15 +238,13 @@ app.put('/api/cows/:id', async (req, res) => {
 
 app.delete('/api/cows/:id', async (req, res) => {
   try {
-    const cows = await db.get('cows') || [];
-    const index = cows.findIndex(c => c.id === req.params.id);
-    if (index === -1) {
+    const cow = await db.collection('cows').findOne({ id: req.params.id });
+    if (!cow) {
       return res.status(404).json({ error: 'Cow not found' });
     }
-    const deletedCow = cows.splice(index, 1)[0];
-    await db.set('cows', cows);
-    await db.delete(`yield_${req.params.id}`);
-    res.json({ message: 'Cow deleted successfully', cow: deletedCow });
+    await db.collection('cows').deleteOne({ id: req.params.id });
+    await db.collection('yieldData').deleteMany({ cowId: req.params.id });
+    res.json({ message: 'Cow deleted successfully', cow: cow });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
@@ -236,7 +252,7 @@ app.delete('/api/cows/:id', async (req, res) => {
 
 app.get('/api/dashboard/stats', async (req, res) => {
   try {
-    const cows = await db.get('cows') || [];
+    const cows = await db.collection('cows').find({}).toArray();
     const cowsWithDetails = cows.map(cow => ({
       ...cow,
       healthScore: calculateHealthScore(cow),
@@ -267,7 +283,7 @@ app.get('/api/dashboard/stats', async (req, res) => {
 
 app.get('/api/yield/:id', async (req, res) => {
   try {
-    const yieldData = await db.get(`yield_${req.params.id}`) || [];
+    const yieldData = await db.collection('yieldData').find({ cowId: req.params.id }).toArray();
     res.json(yieldData);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -276,14 +292,13 @@ app.get('/api/yield/:id', async (req, res) => {
 
 app.post('/api/yield/:id', async (req, res) => {
   try {
-    const yieldData = await db.get(`yield_${req.params.id}`) || [];
     const newEntry = {
+      cowId: req.params.id,
       date: new Date().toISOString().split('T')[0],
       yield: req.body.yield,
       ...req.body
     };
-    yieldData.push(newEntry);
-    await db.set(`yield_${req.params.id}`, yieldData);
+    await db.collection('yieldData').insertOne(newEntry);
     res.status(201).json(newEntry);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -292,8 +307,7 @@ app.post('/api/yield/:id', async (req, res) => {
 
 app.get('/api/feed/:id', async (req, res) => {
   try {
-    const cows = await db.get('cows') || [];
-    const cow = cows.find(c => c.id === req.params.id);
+    const cow = await db.collection('cows').findOne({ id: req.params.id });
     if (!cow) {
       return res.status(404).json({ error: 'Cow not found' });
     }
@@ -306,8 +320,7 @@ app.get('/api/feed/:id', async (req, res) => {
 
 app.get('/api/health/:id', async (req, res) => {
   try {
-    const cows = await db.get('cows') || [];
-    const cow = cows.find(c => c.id === req.params.id);
+    const cow = await db.collection('cows').findOne({ id: req.params.id });
     if (!cow) {
       return res.status(404).json({ error: 'Cow not found' });
     }
@@ -335,7 +348,7 @@ app.get('/api/health/:id', async (req, res) => {
 
 app.get('/api/farm/settings', async (req, res) => {
   try {
-    const settings = await db.get('farmSettings') || {
+    const settings = await db.collection('farmSettings').findOne({}) || {
       farmName: 'Smart Dairy Farm',
       location: 'Coimbatore, Tamil Nadu',
       centerLat: 11.0168,
@@ -351,9 +364,12 @@ app.get('/api/farm/settings', async (req, res) => {
 
 app.put('/api/farm/settings', async (req, res) => {
   try {
-    const settings = await db.get('farmSettings') || {};
-    const updatedSettings = { ...settings, ...req.body };
-    await db.set('farmSettings', updatedSettings);
+    await db.collection('farmSettings').updateOne(
+      {},
+      { $set: req.body },
+      { upsert: true }
+    );
+    const updatedSettings = await db.collection('farmSettings').findOne({});
     res.json(updatedSettings);
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -362,25 +378,22 @@ app.put('/api/farm/settings', async (req, res) => {
 
 app.post('/api/cows/:id/location', async (req, res) => {
   try {
-    const cows = await db.get('cows') || [];
-    const index = cows.findIndex(c => c.id === req.params.id);
-    if (index === -1) {
+    const cow = await db.collection('cows').findOne({ id: req.params.id });
+    if (!cow) {
       return res.status(404).json({ error: 'Cow not found' });
     }
-    cows[index] = { 
-      ...cows[index], 
-      lat: req.body.lat,
-      lng: req.body.lng,
-      lastUpdated: new Date().toISOString()
-    };
-    await db.set('cows', cows);
-    res.json(cows[index]);
+    await db.collection('cows').updateOne(
+      { id: req.params.id },
+      { $set: { lat: req.body.lat, lng: req.body.lng, lastUpdated: new Date().toISOString() } }
+    );
+    const updatedCow = await db.collection('cows').findOne({ id: req.params.id });
+    res.json(updatedCow);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-initializeData().then(() => {
+connectDB().then(() => {
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Backend server running on http://0.0.0.0:${PORT}`);
   });
