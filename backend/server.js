@@ -1,12 +1,13 @@
 const express = require('express');
 const cors = require('cors');
-const { MongoClient, ObjectId } = require('mongodb');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/smart-dairy';
-let db;
+// In-memory data store
+let cows = [];
+let yieldData = [];
+let farmSettings = null;
 
 app.use(cors({
   origin: process.env.FRONTEND_URL || '*',
@@ -14,109 +15,89 @@ app.use(cors({
 }));
 app.use(express.json());
 
-const connectDB = async () => {
-  try {
-    const client = new MongoClient(MONGODB_URI);
-    await client.connect();
-    db = client.db();
-    console.log('Connected to MongoDB');
-    await initializeData();
-  } catch (error) {
-    console.error('MongoDB connection error:', error);
-    process.exit(1);
-  }
-};
+const initializeData = () => {
+  cows = [
+    {
+      id: 'COW001',
+      name: 'Lakshmi',
+      rfidTag: 'RFID001',
+      earTagId: 'TN-MAS-001',
+      breed: 'Sahiwal',
+      dob: '2020-03-15',
+      weight: 450,
+      lactationStage: 'Peak',
+      healthScore: 85,
+      currentYield: 12,
+      temperature: 38.5,
+      activityScore: 75,
+      ruminationScore: 80,
+      zone: 'Milking Area',
+      lat: 11.0168,
+      lng: 76.9558,
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: 'COW002',
+      name: 'Kamala',
+      rfidTag: 'RFID002',
+      earTagId: 'TN-MAS-002',
+      breed: 'Gir',
+      dob: '2019-06-20',
+      weight: 400,
+      lactationStage: 'Mid',
+      healthScore: 92,
+      currentYield: 10,
+      temperature: 38.3,
+      activityScore: 85,
+      ruminationScore: 88,
+      zone: 'Feeding Area',
+      lat: 11.0172,
+      lng: 76.9562,
+      lastUpdated: new Date().toISOString()
+    },
+    {
+      id: 'COW003',
+      name: 'Parvathi',
+      rfidTag: 'RFID003',
+      earTagId: 'TN-MAS-003',
+      breed: 'Sahiwal',
+      dob: '2021-01-10',
+      weight: 420,
+      lactationStage: 'Early',
+      healthScore: 78,
+      currentYield: 8,
+      temperature: 39.1,
+      activityScore: 60,
+      ruminationScore: 65,
+      zone: 'Rest Area',
+      lat: 11.0165,
+      lng: 76.9555,
+      lastUpdated: new Date().toISOString()
+    }
+  ];
 
-const initializeData = async () => {
-  const cowsCollection = db.collection('cows');
-  const settingsCollection = db.collection('farmSettings');
-  
-  const existingCows = await cowsCollection.countDocuments();
-  if (existingCows === 0) {
-    const sampleCows = [
-      {
-        id: 'COW001',
-        name: 'Lakshmi',
-        rfidTag: 'RFID001',
-        earTagId: 'TN-MAS-001',
-        breed: 'Sahiwal',
-        dob: '2020-03-15',
-        weight: 450,
-        lactationStage: 'Peak',
-        healthScore: 85,
-        currentYield: 12,
-        temperature: 38.5,
-        activityScore: 75,
-        ruminationScore: 80,
-        zone: 'Milking Area',
-        lat: 11.0168,
-        lng: 76.9558,
-        lastUpdated: new Date().toISOString()
-      },
-      {
-        id: 'COW002',
-        name: 'Kamala',
-        rfidTag: 'RFID002',
-        earTagId: 'TN-MAS-002',
-        breed: 'Gir',
-        dob: '2019-06-20',
-        weight: 400,
-        lactationStage: 'Mid',
-        healthScore: 92,
-        currentYield: 10,
-        temperature: 38.3,
-        activityScore: 85,
-        ruminationScore: 88,
-        zone: 'Feeding Area',
-        lat: 11.0172,
-        lng: 76.9562,
-        lastUpdated: new Date().toISOString()
-      },
-      {
-        id: 'COW003',
-        name: 'Parvathi',
-        rfidTag: 'RFID003',
-        earTagId: 'TN-MAS-003',
-        breed: 'Sahiwal',
-        dob: '2021-01-10',
-        weight: 420,
-        lactationStage: 'Early',
-        healthScore: 78,
-        currentYield: 8,
-        temperature: 39.1,
-        activityScore: 60,
-        ruminationScore: 65,
-        zone: 'Rest Area',
-        lat: 11.0165,
-        lng: 76.9555,
-        lastUpdated: new Date().toISOString()
-      }
-    ];
-    await cowsCollection.insertMany(sampleCows);
-    
-    const yieldCollection = db.collection('yieldData');
-    for (const cow of sampleCows) {
-      const yieldAmount = cow.id === 'COW001' ? 12 : cow.id === 'COW002' ? 10 : 8;
-      const sampleYield = Array.from({length: 30}, (_, i) => ({
+  // Generate sample yield data
+  for (const cow of cows) {
+    const yieldAmount = cow.id === 'COW001' ? 12 : cow.id === 'COW002' ? 10 : 8;
+    for (let i = 0; i < 30; i++) {
+      yieldData.push({
         cowId: cow.id,
         date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
         yield: yieldAmount - 1 + Math.random() * 2
-      }));
-      await yieldCollection.insertMany(sampleYield);
+      });
     }
   }
 
-  const existingSettings = await settingsCollection.findOne({});
-  if (!existingSettings) {
-    await settingsCollection.insertOne({
-      farmName: 'Smart Dairy Farm',
-      location: 'Coimbatore, Tamil Nadu',
-      centerLat: 11.0168,
-      centerLng: 76.9558,
-      milkPricePerLiter: 45,
-      currency: 'INR'
-    });
-  }
+  farmSettings = {
+    farmName: 'Smart Dairy Farm',
+    location: 'Coimbatore, Tamil Nadu',
+    centerLat: 11.0168,
+    centerLng: 76.9558,
+    milkPricePerLiter: 45,
+    currency: 'INR'
+  };
+
+  console.log('Sample data initialized');
 };
 
 const calculateFeedRequirements = (cow) => {
@@ -159,9 +140,8 @@ const calculateHealthScore = (cow) => {
   return Math.max(0, score);
 };
 
-app.get('/api/cows', async (req, res) => {
+app.get('/api/cows', (req, res) => {
   try {
-    const cows = await db.collection('cows').find({}).toArray();
     const cowsWithDetails = cows.map(cow => ({
       ...cow,
       healthScore: calculateHealthScore(cow),
@@ -175,9 +155,9 @@ app.get('/api/cows', async (req, res) => {
   }
 });
 
-app.get('/api/cows/:id', async (req, res) => {
+app.get('/api/cows/:id', (req, res) => {
   try {
-    const cow = await db.collection('cows').findOne({ id: req.params.id });
+    const cow = cows.find(c => c.id === req.params.id);
     if (!cow) {
       return res.status(404).json({ error: 'Cow not found' });
     }
@@ -194,24 +174,24 @@ app.get('/api/cows/:id', async (req, res) => {
   }
 });
 
-app.post('/api/cows', async (req, res) => {
+app.post('/api/cows', (req, res) => {
   try {
-    const cowsCollection = db.collection('cows');
-    const count = await cowsCollection.countDocuments();
     const newCow = {
       ...req.body,
-      id: `COW${String(count + 1).padStart(3, '0')}`,
+      id: `COW${String(cows.length + 1).padStart(3, '0')}`,
       lastUpdated: new Date().toISOString()
     };
-    await cowsCollection.insertOne(newCow);
+    cows.push(newCow);
     
-    const yieldCollection = db.collection('yieldData');
-    const sampleYield = Array.from({length: 30}, (_, i) => ({
-      cowId: newCow.id,
-      date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      yield: (req.body.currentYield || 8) - 1 + Math.random() * 2
-    }));
-    await yieldCollection.insertMany(sampleYield);
+    // Generate yield data for new cow
+    const yieldAmount = req.body.currentYield || 8;
+    for (let i = 0; i < 30; i++) {
+      yieldData.push({
+        cowId: newCow.id,
+        date: new Date(Date.now() - (29 - i) * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        yield: yieldAmount - 1 + Math.random() * 2
+      });
+    }
     
     res.status(201).json(newCow);
   } catch (error) {
@@ -219,40 +199,35 @@ app.post('/api/cows', async (req, res) => {
   }
 });
 
-app.put('/api/cows/:id', async (req, res) => {
+app.put('/api/cows/:id', (req, res) => {
   try {
-    const cow = await db.collection('cows').findOne({ id: req.params.id });
-    if (!cow) {
+    const index = cows.findIndex(c => c.id === req.params.id);
+    if (index === -1) {
       return res.status(404).json({ error: 'Cow not found' });
     }
-    await db.collection('cows').updateOne(
-      { id: req.params.id },
-      { $set: { ...req.body, lastUpdated: new Date().toISOString() } }
-    );
-    const updatedCow = await db.collection('cows').findOne({ id: req.params.id });
-    res.json(updatedCow);
+    cows[index] = { ...cows[index], ...req.body, lastUpdated: new Date().toISOString() };
+    res.json(cows[index]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.delete('/api/cows/:id', async (req, res) => {
+app.delete('/api/cows/:id', (req, res) => {
   try {
-    const cow = await db.collection('cows').findOne({ id: req.params.id });
-    if (!cow) {
+    const index = cows.findIndex(c => c.id === req.params.id);
+    if (index === -1) {
       return res.status(404).json({ error: 'Cow not found' });
     }
-    await db.collection('cows').deleteOne({ id: req.params.id });
-    await db.collection('yieldData').deleteMany({ cowId: req.params.id });
-    res.json({ message: 'Cow deleted successfully', cow: cow });
+    const deleted = cows.splice(index, 1)[0];
+    yieldData = yieldData.filter(y => y.cowId !== req.params.id);
+    res.json({ message: 'Cow deleted successfully', cow: deleted });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/dashboard/stats', async (req, res) => {
+app.get('/api/dashboard/stats', (req, res) => {
   try {
-    const cows = await db.collection('cows').find({}).toArray();
     const cowsWithDetails = cows.map(cow => ({
       ...cow,
       healthScore: calculateHealthScore(cow),
@@ -281,16 +256,16 @@ app.get('/api/dashboard/stats', async (req, res) => {
   }
 });
 
-app.get('/api/yield/:id', async (req, res) => {
+app.get('/api/yield/:id', (req, res) => {
   try {
-    const yieldData = await db.collection('yieldData').find({ cowId: req.params.id }).toArray();
-    res.json(yieldData);
+    const cowYieldData = yieldData.filter(y => y.cowId === req.params.id);
+    res.json(cowYieldData);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/yield/:id', async (req, res) => {
+app.post('/api/yield/:id', (req, res) => {
   try {
     const newEntry = {
       cowId: req.params.id,
@@ -298,16 +273,16 @@ app.post('/api/yield/:id', async (req, res) => {
       yield: req.body.yield,
       ...req.body
     };
-    await db.collection('yieldData').insertOne(newEntry);
+    yieldData.push(newEntry);
     res.status(201).json(newEntry);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.get('/api/feed/:id', async (req, res) => {
+app.get('/api/feed/:id', (req, res) => {
   try {
-    const cow = await db.collection('cows').findOne({ id: req.params.id });
+    const cow = cows.find(c => c.id === req.params.id);
     if (!cow) {
       return res.status(404).json({ error: 'Cow not found' });
     }
@@ -318,9 +293,9 @@ app.get('/api/feed/:id', async (req, res) => {
   }
 });
 
-app.get('/api/health/:id', async (req, res) => {
+app.get('/api/health/:id', (req, res) => {
   try {
-    const cow = await db.collection('cows').findOne({ id: req.params.id });
+    const cow = cows.find(c => c.id === req.params.id);
     if (!cow) {
       return res.status(404).json({ error: 'Cow not found' });
     }
@@ -346,55 +321,50 @@ app.get('/api/health/:id', async (req, res) => {
   }
 });
 
-app.get('/api/farm/settings', async (req, res) => {
+app.get('/api/farm/settings', (req, res) => {
   try {
-    const settings = await db.collection('farmSettings').findOne({}) || {
+    res.json(farmSettings || {
       farmName: 'Smart Dairy Farm',
       location: 'Coimbatore, Tamil Nadu',
       centerLat: 11.0168,
       centerLng: 76.9558,
       milkPricePerLiter: 45,
       currency: 'INR'
-    };
-    res.json(settings);
+    });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.put('/api/farm/settings', async (req, res) => {
+app.put('/api/farm/settings', (req, res) => {
   try {
-    await db.collection('farmSettings').updateOne(
-      {},
-      { $set: req.body },
-      { upsert: true }
-    );
-    const updatedSettings = await db.collection('farmSettings').findOne({});
-    res.json(updatedSettings);
+    farmSettings = { ...farmSettings, ...req.body };
+    res.json(farmSettings);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-app.post('/api/cows/:id/location', async (req, res) => {
+app.post('/api/cows/:id/location', (req, res) => {
   try {
-    const cow = await db.collection('cows').findOne({ id: req.params.id });
-    if (!cow) {
+    const index = cows.findIndex(c => c.id === req.params.id);
+    if (index === -1) {
       return res.status(404).json({ error: 'Cow not found' });
     }
-    await db.collection('cows').updateOne(
-      { id: req.params.id },
-      { $set: { lat: req.body.lat, lng: req.body.lng, lastUpdated: new Date().toISOString() } }
-    );
-    const updatedCow = await db.collection('cows').findOne({ id: req.params.id });
-    res.json(updatedCow);
+    cows[index] = { 
+      ...cows[index], 
+      lat: req.body.lat, 
+      lng: req.body.lng, 
+      lastUpdated: new Date().toISOString() 
+    };
+    res.json(cows[index]);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-connectDB().then(() => {
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Backend server running on http://0.0.0.0:${PORT}`);
-  });
+// Initialize data and start server
+initializeData();
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Backend server running on http://0.0.0.0:${PORT}`);
 });
