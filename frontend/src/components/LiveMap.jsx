@@ -1,174 +1,43 @@
-import { useEffect, useRef, useState } from 'react';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { useState, useEffect } from 'react';
 
 export default function LiveMap({ cows, language, onCowClick }) {
-  const mapRef = useRef(null);
-  const mapInstanceRef = useRef(null);
-  const markersRef = useRef([]);
   const [isVisible, setIsVisible] = useState(false);
-  const [isMapLoaded, setIsMapLoaded] = useState(false);
+  const [hoveredCow, setHoveredCow] = useState(null);
 
   useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), 100);
     return () => clearTimeout(timer);
   }, []);
 
-  useEffect(() => {
-    if (!mapRef.current || mapInstanceRef.current) return;
+  const farmZones = [
+    { id: 'milking', name: language === 'ta' ? 'பால் கறக்கும் பகுதி' : 'Milking Area', x: 180, y: 200, width: 120, height: 80, color: '#10b981' },
+    { id: 'feeding', name: language === 'ta' ? 'உணவு பகுதி' : 'Feeding Area', x: 350, y: 150, width: 120, height: 80, color: '#3b82f6' },
+    { id: 'rest', name: language === 'ta' ? 'ஓய்வு பகுதி' : 'Rest Area', x: 120, y: 320, width: 140, height: 70, color: '#8b5cf6' },
+    { id: 'grazing', name: language === 'ta' ? 'மேய்ச்சல் நிலம்' : 'Grazing Field', x: 320, y: 280, width: 160, height: 100, color: '#22c55e' },
+  ];
 
-    const centerLat = 11.0168;
-    const centerLng = 76.9558;
-
-    mapInstanceRef.current = L.map(mapRef.current, {
-      zoomAnimation: true,
-      fadeAnimation: true,
-      markerZoomAnimation: true
-    }).setView([centerLat, centerLng], 17);
-
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(mapInstanceRef.current);
-
-    mapInstanceRef.current.on('load', () => {
-      setIsMapLoaded(true);
-    });
-
-    setTimeout(() => setIsMapLoaded(true), 500);
-
-    return () => {
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.remove();
-        mapInstanceRef.current = null;
-      }
+  const getCowPosition = (cow, index) => {
+    const zone = cow.zone?.toLowerCase().includes('milking') ? farmZones[0] :
+                 cow.zone?.toLowerCase().includes('feeding') ? farmZones[1] :
+                 cow.zone?.toLowerCase().includes('rest') ? farmZones[2] : farmZones[3];
+    
+    const offsetX = (index % 3) * 35 + 20;
+    const offsetY = Math.floor(index / 3) * 30 + 25;
+    
+    return {
+      x: zone.x + offsetX,
+      y: zone.y + offsetY
     };
-  }, []);
+  };
 
-  useEffect(() => {
-    if (!mapInstanceRef.current) return;
-
-    markersRef.current.forEach(marker => marker.remove());
-    markersRef.current = [];
-
-    cows.forEach((cow, index) => {
-      if (cow.lat && cow.lng) {
-        const statusColor = cow.status === 'healthy' ? '#22c55e' : 
-                           cow.status === 'warning' ? '#eab308' : '#ef4444';
-        
-        const customIcon = L.divIcon({
-          className: 'custom-cow-marker',
-          html: `
-            <div style="
-              width: 32px;
-              height: 32px;
-              background: linear-gradient(135deg, ${statusColor}, ${statusColor}dd);
-              border: 3px solid white;
-              border-radius: 50%;
-              box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              cursor: pointer;
-              transition: all 0.3s ease;
-              animation: markerPop 0.4s ease-out ${index * 0.1}s both;
-            ">
-              <span style="color: white; font-size: 12px; font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.2);">
-                ${cow.id.slice(-2)}
-              </span>
-            </div>
-            <style>
-              @keyframes markerPop {
-                0% { transform: scale(0); opacity: 0; }
-                50% { transform: scale(1.2); }
-                100% { transform: scale(1); opacity: 1; }
-              }
-              .custom-cow-marker:hover > div {
-                transform: scale(1.15) !important;
-                box-shadow: 0 6px 16px rgba(0,0,0,0.4) !important;
-              }
-            </style>
-          `,
-          iconSize: [32, 32],
-          iconAnchor: [16, 16]
-        });
-
-        const marker = L.marker([cow.lat, cow.lng], { icon: customIcon })
-          .addTo(mapInstanceRef.current);
-
-        const statusText = language === 'ta' ? 
-          (cow.status === 'healthy' ? 'ஆரோக்கியமான' : cow.status === 'warning' ? 'எச்சரிக்கை' : 'அபாய எச்சரிக்கை') :
-          cow.status.charAt(0).toUpperCase() + cow.status.slice(1);
-
-        const yieldLabel = language === 'ta' ? 'பால்' : 'Milk';
-        const tempLabel = language === 'ta' ? 'வெப்பநிலை' : 'Temp';
-        const zoneLabel = language === 'ta' ? 'பகுதி' : 'Zone';
-
-        marker.bindPopup(`
-          <div style="min-width: 200px; font-family: system-ui, sans-serif; padding: 4px;">
-            <div style="
-              font-weight: 700; 
-              font-size: 16px; 
-              margin-bottom: 12px; 
-              border-bottom: 2px solid ${statusColor}; 
-              padding-bottom: 8px;
-              display: flex;
-              align-items: center;
-              gap: 8px;
-            ">
-              <span style="font-size: 20px;">🐄</span>
-              <span>${cow.name || cow.id}</span>
-              <span style="
-                font-size: 10px; 
-                color: #666;
-                background: #f3f4f6;
-                padding: 2px 6px;
-                border-radius: 4px;
-              ">${cow.earTagId || cow.rfidTag}</span>
-            </div>
-            <div style="display: grid; gap: 8px; font-size: 13px;">
-              <div style="display: flex; justify-content: space-between; padding: 4px 0;">
-                <span style="color: #6b7280;">🏷️ ${language === 'ta' ? 'இனம்' : 'Breed'}</span>
-                <span style="font-weight: 600;">${cow.breed}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; padding: 4px 0;">
-                <span style="color: #6b7280;">🥛 ${yieldLabel}</span>
-                <span style="font-weight: 600;">${cow.currentYield} ${language === 'ta' ? 'லி' : 'L'}/day</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; padding: 4px 0;">
-                <span style="color: #6b7280;">🌡️ ${tempLabel}</span>
-                <span style="font-weight: 600;">${cow.temperature}°C</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; padding: 4px 0;">
-                <span style="color: #6b7280;">📍 ${zoneLabel}</span>
-                <span style="font-weight: 600;">${cow.zone}</span>
-              </div>
-              <div style="margin-top: 8px; text-align: center;">
-                <span style="
-                  display: inline-block;
-                  padding: 6px 16px;
-                  border-radius: 20px;
-                  font-size: 12px;
-                  font-weight: 600;
-                  background: ${statusColor}20;
-                  color: ${statusColor};
-                  border: 1px solid ${statusColor}40;
-                ">${statusText}</span>
-              </div>
-            </div>
-          </div>
-        `, {
-          className: 'custom-popup',
-          maxWidth: 250
-        });
-
-        marker.on('click', () => {
-          if (onCowClick) onCowClick(cow);
-        });
-
-        markersRef.current.push(marker);
-      }
-    });
-  }, [cows, language, onCowClick]);
+  const getStatusColor = (status) => {
+    switch (status) {
+      case 'healthy': return '#22c55e';
+      case 'warning': return '#eab308';
+      case 'alert': return '#ef4444';
+      default: return '#22c55e';
+    }
+  };
 
   return (
     <div className={`bg-white rounded-xl shadow-lg overflow-hidden transition-all duration-500 ${isVisible ? 'animate-fade-in-up' : 'opacity-0'} card-interactive`}>
@@ -184,7 +53,7 @@ export default function LiveMap({ cows, language, onCowClick }) {
                 <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                 Live
               </span>
-              {language === 'ta' ? 'மாடுகளின் நேரடி இருப்பிடத்தைக் காண்க' : 'View real-time cow locations with ear tag tracking'}
+              {language === 'ta' ? 'தமிழ்நாடு பண்ணை - நேரடி கண்காணிப்பு' : 'Tamil Nadu Farm - Real-time Monitoring'}
             </p>
           </div>
           <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -193,19 +62,141 @@ export default function LiveMap({ cows, language, onCowClick }) {
           </div>
         </div>
       </div>
-      <div className="relative">
-        {!isMapLoaded && (
-          <div className="absolute inset-0 bg-gray-100 flex items-center justify-center z-10">
-            <div className="flex flex-col items-center gap-3">
-              <div className="loading-spinner"></div>
-              <span className="text-gray-500 text-sm animate-pulse">
-                {language === 'ta' ? 'வரைபடம் ஏற்றுகிறது...' : 'Loading map...'}
-              </span>
-            </div>
-          </div>
-        )}
-        <div ref={mapRef} style={{ height: '400px', width: '100%' }} className={`transition-opacity duration-500 ${isMapLoaded ? 'opacity-100' : 'opacity-0'}`} />
+      
+      <div className="relative p-4" style={{ background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #d1fae5 100%)' }}>
+        <svg viewBox="0 0 600 450" className="w-full h-auto" style={{ minHeight: '350px' }}>
+          <defs>
+            <pattern id="grass" patternUnits="userSpaceOnUse" width="20" height="20">
+              <rect width="20" height="20" fill="#86efac" />
+              <circle cx="5" cy="5" r="1" fill="#22c55e" opacity="0.5" />
+              <circle cx="15" cy="15" r="1" fill="#22c55e" opacity="0.5" />
+            </pattern>
+            <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+              <feDropShadow dx="2" dy="2" stdDeviation="3" floodOpacity="0.2"/>
+            </filter>
+          </defs>
+          
+          <rect x="0" y="0" width="600" height="450" fill="url(#grass)" />
+          
+          <text x="300" y="30" textAnchor="middle" fontSize="18" fontWeight="bold" fill="#166534">
+            {language === 'ta' ? '🌾 கோயம்புத்தூர் பண்ணை, தமிழ்நாடு' : '🌾 Coimbatore Farm, Tamil Nadu'}
+          </text>
+          <text x="300" y="50" textAnchor="middle" fontSize="12" fill="#4b5563">
+            {language === 'ta' ? 'அட்சரேகை: 11.0168°N, தீர்க்கரேகை: 76.9558°E' : 'Lat: 11.0168°N, Lng: 76.9558°E'}
+          </text>
+
+          <path d="M50,80 Q100,60 150,75 T250,70 T350,80 T450,65 T550,85" stroke="#9ca3af" strokeWidth="2" fill="none" strokeDasharray="5,5" />
+          <text x="60" y="100" fontSize="10" fill="#6b7280">{language === 'ta' ? 'சாலை' : 'Road'}</text>
+
+          {farmZones.map((zone) => (
+            <g key={zone.id}>
+              <rect
+                x={zone.x}
+                y={zone.y}
+                width={zone.width}
+                height={zone.height}
+                rx="8"
+                fill={zone.color}
+                opacity="0.2"
+                stroke={zone.color}
+                strokeWidth="2"
+                filter="url(#shadow)"
+              />
+              <text
+                x={zone.x + zone.width / 2}
+                y={zone.y - 8}
+                textAnchor="middle"
+                fontSize="11"
+                fontWeight="600"
+                fill={zone.color}
+              >
+                {zone.name}
+              </text>
+            </g>
+          ))}
+
+          <g>
+            <rect x="520" y="120" width="60" height="50" rx="4" fill="#78716c" opacity="0.8" filter="url(#shadow)" />
+            <text x="550" y="150" textAnchor="middle" fontSize="10" fill="white">{language === 'ta' ? 'கொட்டில்' : 'Barn'}</text>
+          </g>
+
+          <g>
+            <circle cx="80" cy="380" r="25" fill="#60a5fa" opacity="0.6" />
+            <text x="80" y="385" textAnchor="middle" fontSize="10" fill="#1e40af">{language === 'ta' ? 'நீர்' : 'Water'}</text>
+          </g>
+
+          {cows.map((cow, index) => {
+            const pos = getCowPosition(cow, index);
+            const statusColor = getStatusColor(cow.status);
+            const isHovered = hoveredCow === cow.id;
+            
+            return (
+              <g
+                key={cow.id}
+                transform={`translate(${pos.x}, ${pos.y})`}
+                style={{ cursor: 'pointer', transition: 'transform 0.3s ease' }}
+                onClick={() => onCowClick && onCowClick(cow)}
+                onMouseEnter={() => setHoveredCow(cow.id)}
+                onMouseLeave={() => setHoveredCow(null)}
+              >
+                <circle
+                  r={isHovered ? 22 : 18}
+                  fill={statusColor}
+                  stroke="white"
+                  strokeWidth="3"
+                  filter="url(#shadow)"
+                  style={{ transition: 'r 0.2s ease' }}
+                />
+                <text
+                  y="1"
+                  textAnchor="middle"
+                  fontSize="16"
+                  dominantBaseline="middle"
+                >
+                  🐄
+                </text>
+                <text
+                  y="30"
+                  textAnchor="middle"
+                  fontSize="10"
+                  fontWeight="600"
+                  fill="#374151"
+                >
+                  {cow.name}
+                </text>
+                {isHovered && (
+                  <g>
+                    <rect x="-60" y="-70" width="120" height="50" rx="6" fill="white" stroke="#e5e7eb" filter="url(#shadow)" />
+                    <text x="0" y="-52" textAnchor="middle" fontSize="11" fontWeight="600" fill="#1f2937">
+                      {cow.name} ({cow.id})
+                    </text>
+                    <text x="0" y="-38" textAnchor="middle" fontSize="10" fill="#6b7280">
+                      {language === 'ta' ? 'பால்' : 'Milk'}: {cow.currentYield}L | {language === 'ta' ? 'வெப்பம்' : 'Temp'}: {cow.temperature}°C
+                    </text>
+                    <text x="0" y="-24" textAnchor="middle" fontSize="10" fill={statusColor} fontWeight="600">
+                      {cow.status === 'healthy' ? (language === 'ta' ? 'ஆரோக்கியமான' : 'Healthy') :
+                       cow.status === 'warning' ? (language === 'ta' ? 'எச்சரிக்கை' : 'Warning') :
+                       (language === 'ta' ? 'அபாயம்' : 'Alert')}
+                    </text>
+                  </g>
+                )}
+              </g>
+            );
+          })}
+
+          <g transform="translate(500, 380)">
+            <rect x="-40" y="-25" width="80" height="60" rx="4" fill="white" opacity="0.9" stroke="#e5e7eb" />
+            <text x="0" y="-10" textAnchor="middle" fontSize="9" fontWeight="600" fill="#374151">
+              {language === 'ta' ? 'திசை' : 'Direction'}
+            </text>
+            <text x="0" y="5" textAnchor="middle" fontSize="10" fill="#ef4444">N ↑</text>
+            <text x="-15" y="18" fontSize="8" fill="#6b7280">W</text>
+            <text x="10" y="18" fontSize="8" fill="#6b7280">E</text>
+            <text x="0" y="28" textAnchor="middle" fontSize="8" fill="#6b7280">S</text>
+          </g>
+        </svg>
       </div>
+
       <div className="p-4 bg-gradient-to-r from-gray-50 to-white flex gap-6 justify-center text-sm border-t">
         <LegendItem color="bg-green-500" label={language === 'ta' ? 'ஆரோக்கியமான' : 'Healthy'} />
         <LegendItem color="bg-yellow-500" label={language === 'ta' ? 'எச்சரிக்கை' : 'Warning'} />
